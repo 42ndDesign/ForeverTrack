@@ -1,21 +1,27 @@
--- ForeverTrack: keep Find Minerals and Find Treasure on at the same time
--- (WoW Forever allows multiple trackings, like retail), and show a clickable
--- reminder when one you want is off. All changes happen OUT of combat only.
+-- ForeverTrack: keep the minimap trackings you choose switched on in WoW Forever
+-- (Forever allows several at once), and show a clickable reminder when one is off.
+-- Works with every entry in the minimap tracking menu: gathering (Find Minerals,
+-- Herbs, Treasure, Fish), class tracking (Track Beasts, Humanoids, Undead, ...,
+-- Sense Undead/Demons) and town trackers (Flight Master, Mailbox, ...).
+-- All changes happen OUT of combat only.
 
 local ADDON = ...
 
-local SPELLS = {
-  minerals = 2580, -- Find Minerals (Mining)
-  treasure = 2481, -- Find Treasure (Dwarf racial)
+-- Spells turned on by default the first time a character sees them.
+local DEFAULT_ON = {
+  [2580]  = true, -- Find Minerals
+  [2383]  = true, -- Find Herbs
+  [2481]  = true, -- Find Treasure (Dwarf)
+  [43308] = true, -- Find Fish
 }
-local FALLBACK_NAMES = {
-  minerals = "Find Minerals",
-  treasure = "Find Treasure",
+-- English fallback when an entry carries no spell ID
+local DEFAULT_ON_NAMES = {
+  ["Find Minerals"] = true, ["Find Herbs"] = true,
+  ["Find Treasure"] = true, ["Find Fish"] = true,
 }
-local ORDER = { "minerals", "treasure" }
 
 local DEFAULTS = {
-  want = { minerals = true, treasure = true },
+  want = {},         -- [key] = true/false, key = "spell:<id>" or "name:<name>"
   auto = true,       -- re-enable at login, zoning, and after death
   reminder = true,   -- show the "tracking is off" icon
   point = nil,       -- saved reminder position
@@ -57,34 +63,42 @@ local function SetTrackingIndex(i, on)
   end
 end
 
-local function SpellName(id)
-  if C_Spell and C_Spell.GetSpellName then
-    return C_Spell.GetSpellName(id)
-  elseif GetSpellInfo then
-    return (GetSpellInfo(id))
-  end
-end
-
 local function IsSecret(v)
   return issecretvalue and issecretvalue(v) or false
 end
 
-local function Label(key)
-  return SpellName(SPELLS[key]) or FALLBACK_NAMES[key]
+---------------------------------------------------------------------------
+-- Tracking list
+---------------------------------------------------------------------------
+-- Every entry in the tracking menu: { index, key, name, texture, active, isSpell, spellID }
+-- Spell trackings come first, then town trackers, each sorted by name.
+local function Entries()
+  local list = {}
+  for i = 1, NumTrackingTypes() do
+    local name, texture, active, ttype, _, spellID = TrackingInfo(i)
+    if name and not IsSecret(name) and not IsSecret(active) then
+      if IsSecret(spellID) then spellID = nil end
+      local key = (spellID and spellID > 0) and ("spell:" .. spellID) or ("name:" .. name)
+      list[#list + 1] = {
+        index = i, key = key, name = name, texture = texture,
+        active = active and true or false,
+        isSpell = (ttype == "spell") or (spellID ~= nil and spellID > 0),
+        spellID = spellID,
+      }
+    end
+  end
+  table.sort(list, function(a, b)
+    if a.isSpell ~= b.isSpell then return a.isSpell end
+    return a.name < b.name
+  end)
+  return list
 end
 
----------------------------------------------------------------------------
--- Tracking helpers
----------------------------------------------------------------------------
--- Find the tracking-menu entry for "minerals"/"treasure". Returns index, active, texture.
-local function Find(key)
-  local wantID, wantName = SPELLS[key], Label(key)
-  for i = 1, NumTrackingTypes() do
-    local name, texture, active, _, _, spellID = TrackingInfo(i)
-    if not IsSecret(name) and not IsSecret(active) then
-      if (spellID and spellID == wantID) or (name and name == wantName) then
-        return i, active and true or false, texture
-      end
+-- First time we see an entry, give it a default; afterwards the saved choice wins.
+local function ApplyDefaults(list)
+  for _, e in ipairs(list) do
+    if db.want[e.key] == nil then
+      db.want[e.key] = (e.spellID and DEFAULT_ON[e.spellID]) or DEFAULT_ON_NAMES[e.name] or false
     end
   end
 end
@@ -96,33 +110,22 @@ local function CanAct()
   return true
 end
 
-local function Enable(key)
-  local idx, active = Find(key)
-  if idx and not active then
-    SetTrackingIndex(idx, true)
-    return true
-  end
-  return false
-end
-
--- Wanted trackings this character knows but has switched off
 local function Missing()
-  local list = {}
-  for _, key in ipairs(ORDER) do
-    if db.want[key] then
-      local idx, active, tex = Find(key)
-      if idx and not active then
-        list[#list + 1] = { key = key, tex = tex }
-      end
-    end
+  local out = {}
+  for _, e in ipairs(Entries()) do
+    if db.want[e.key] and not e.active then out[#out + 1] = e end
   end
-  return list
+  return out
 end
 
 local function EnableAllWanted()
   if not CanAct() then return end
-  for _, key in ipairs(ORDER) do
-    if db.want[key] then Enable(key) end
+  local list = Entries()
+  ApplyDefaults(list)
+  for _, e in ipairs(list) do
+    if db.want[e.key] and not e.active then
+      SetTrackingIndex(e.index, true)
+    end
   end
 end
 
@@ -141,7 +144,7 @@ reminder:Hide()
 
 reminder.icon = reminder:CreateTexture(nil, "ARTWORK")
 reminder.icon:SetAllPoints()
-reminder.icon:SetTexture(134400) -- placeholder; replaced by the tracking spell's own icon
+reminder.icon:SetTexture(134400) -- placeholder; replaced by the tracking's own icon
 
 reminder.text = reminder:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 reminder.text:SetPoint("TOP", reminder, "BOTTOM", 0, -4)
@@ -163,10 +166,13 @@ local function UpdateReminder()
   local missing = Missing()
   if #missing == 0 then HideReminder(); return end
 
-  local names = {}
-  for _, m in ipairs(missing) do names[#names + 1] = Label(m.key) end
-  if missing[1].tex then reminder.icon:SetTexture(missing[1].tex) end
-  reminder.text:SetText(table.concat(names, " + ") .. " off")
+  if missing[1].texture then reminder.icon:SetTexture(missing[1].texture) end
+  if #missing == 1 then
+    reminder.text:SetText(missing[1].name .. " off")
+  else
+    reminder.text:SetText(("%s + %d more off"):format(missing[1].name, #missing - 1))
+  end
+  reminder.missing = missing
   reminder:Show()
   if not pulse:IsPlaying() then pulse:Play() end
 end
@@ -186,11 +192,126 @@ end)
 reminder:SetScript("OnEnter", function(self)
   GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
   GameTooltip:AddLine("ForeverTrack")
-  GameTooltip:AddLine("Click to turn your tracking back on.", 1, 1, 1)
+  for _, e in ipairs(self.missing or {}) do
+    GameTooltip:AddLine("|T" .. (e.texture or 134400) .. ":14|t " .. e.name .. " is off", 1, 0.5, 0.5)
+  end
+  GameTooltip:AddLine("Click to turn them back on.", 1, 1, 1)
   GameTooltip:AddLine("Shift-drag to move. /ftrack for options.", 0.7, 0.7, 0.7)
   GameTooltip:Show()
 end)
 reminder:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+---------------------------------------------------------------------------
+-- Options panel (Esc > Options > AddOns > ForeverTrack)
+---------------------------------------------------------------------------
+local panel = CreateFrame("Frame")
+panel.name = "ForeverTrack"
+panel.rows = {}
+local settingsCategory
+
+local function MakeCheck(parent, label, tooltip, onClick)
+  local cb = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+  cb:SetSize(26, 26)
+  cb.label = cb:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+  cb.label:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+  cb.label:SetText(label)
+  cb:SetScript("OnClick", function(self) onClick(self:GetChecked() and true or false) end)
+  if tooltip then
+    cb:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(tooltip, 1, 1, 1, true); GameTooltip:Show()
+    end)
+    cb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  end
+  return cb
+end
+
+local function BuildPanel()
+  if panel.built then return end
+  panel.built = true
+
+  local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+  title:SetPoint("TOPLEFT", 16, -16)
+  title:SetText("ForeverTrack")
+
+  local sub = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+  sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+  sub:SetPoint("RIGHT", panel, "RIGHT", -16, 0)
+  sub:SetJustifyH("LEFT")
+  sub:SetText("Ticked trackings are turned back on at login, after zoning and after death. "
+    .. "Settings are saved per character. Only trackings this character has are listed.")
+
+  panel.auto = MakeCheck(panel, "Turn tracking on automatically",
+    "Off = reminder only. ForeverTrack never changes tracking in combat.",
+    function(v) db.auto = v end)
+  panel.auto:SetPoint("TOPLEFT", sub, "BOTTOMLEFT", -2, -10)
+
+  panel.rem = MakeCheck(panel, "Show reminder icon when a ticked tracking is off",
+    nil, function(v) db.reminder = v; UpdateReminder() end)
+  panel.rem:SetPoint("TOPLEFT", panel.auto, "BOTTOMLEFT", 0, -2)
+
+  local header = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+  header:SetPoint("TOPLEFT", panel.rem, "BOTTOMLEFT", 2, -14)
+  header:SetText("Keep these on:")
+  panel.header = header
+end
+
+local function RefreshPanel()
+  if not db then return end
+  BuildPanel()
+  panel.auto:SetChecked(db.auto)
+  panel.rem:SetChecked(db.reminder)
+
+  local list = Entries()
+  ApplyDefaults(list)
+  for _, row in ipairs(panel.rows) do row:Hide() end
+
+  local anchor, lastWasSpell = panel.header, true
+  for i, e in ipairs(list) do
+    local row = panel.rows[i]
+    if not row then
+      row = MakeCheck(panel, "", nil, function() end)
+      row.icon = row:CreateTexture(nil, "ARTWORK")
+      row.icon:SetSize(18, 18)
+      row.icon:SetPoint("LEFT", row, "RIGHT", 4, 0)
+      row.label:ClearAllPoints()
+      row.label:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
+      panel.rows[i] = row
+    end
+    local gap = (lastWasSpell and not e.isSpell) and -12 or -2
+    lastWasSpell = e.isSpell
+    row:ClearAllPoints()
+    row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", (i == 1) and -2 or 0, (i == 1) and -6 or gap)
+    row.icon:SetTexture(e.texture or 134400)
+    row.label:SetText(e.name .. (e.active and "  |cff33ff33(on)|r" or "  |cff999999(off)|r"))
+    row:SetChecked(db.want[e.key] and true or false)
+    row:SetScript("OnClick", function(self)
+      db.want[e.key] = self:GetChecked() and true or false
+      if db.want[e.key] and CanAct() then SetTrackingIndex(e.index, true) end
+      C_Timer.After(0.3, function() if panel:IsVisible() then RefreshPanel() end UpdateReminder() end)
+    end)
+    row:Show()
+    anchor = row
+  end
+end
+
+panel:SetScript("OnShow", RefreshPanel)
+
+local function RegisterPanel()
+  if Settings and Settings.RegisterCanvasLayoutCategory then
+    settingsCategory = Settings.RegisterCanvasLayoutCategory(panel, panel.name)
+    Settings.RegisterAddOnCategory(settingsCategory)
+  elseif InterfaceOptions_AddCategory then
+    InterfaceOptions_AddCategory(panel)
+  end
+end
+
+local function OpenPanel()
+  if settingsCategory and Settings and Settings.OpenToCategory then
+    Settings.OpenToCategory(settingsCategory:GetID())
+  elseif InterfaceOptionsFrame_OpenToCategory then
+    InterfaceOptionsFrame_OpenToCategory(panel)
+  end
+end
 
 ---------------------------------------------------------------------------
 -- Events
@@ -198,8 +319,17 @@ reminder:SetScript("OnLeave", function() GameTooltip:Hide() end)
 -- Auto re-enable only on "tracking got reset" moments (login, zoning, death).
 -- If you switch one off by hand mid-session, it stays off and the reminder shows.
 local function Refresh()
+  ApplyDefaults(Entries())
   if db.auto then EnableAllWanted() end
   UpdateReminder()
+end
+
+-- v1.0 saved { want = { minerals = bool, treasure = bool } }
+local function Migrate(saved)
+  local w = saved.want
+  if type(w) ~= "table" then saved.want = {}; return end
+  if w.minerals ~= nil then w["spell:2580"] = w.minerals; w.minerals = nil end
+  if w.treasure ~= nil then w["spell:2481"] = w.treasure; w.treasure = nil end
 end
 
 local ev = CreateFrame("Frame")
@@ -212,24 +342,25 @@ ev:RegisterEvent("PLAYER_REGEN_ENABLED")
 ev:RegisterEvent("PLAYER_REGEN_DISABLED")
 ev:RegisterEvent("MINIMAP_UPDATE_TRACKING")
 ev:RegisterEvent("SKILL_LINES_CHANGED")
+ev:RegisterEvent("LEARNED_SPELL_IN_TAB")
+ev:RegisterEvent("UPDATE_SHAPESHIFT_FORM")
 
 ev:SetScript("OnEvent", function(_, event, arg1)
   if event == "ADDON_LOADED" then
     if arg1 ~= ADDON then return end
     ForeverTrackDB = ForeverTrackDB or {}
+    Migrate(ForeverTrackDB)
     for k, v in pairs(DEFAULTS) do
       if ForeverTrackDB[k] == nil then
-        ForeverTrackDB[k] = (type(v) == "table") and CopyTable and CopyTable(v) or v
+        ForeverTrackDB[k] = (type(v) == "table") and {} or v
       end
-    end
-    if type(ForeverTrackDB.want) ~= "table" then
-      ForeverTrackDB.want = { minerals = true, treasure = true }
     end
     db = ForeverTrackDB
     if db.point then
       reminder:ClearAllPoints()
       reminder:SetPoint(db.point[1], UIParent, db.point[2], db.point[3], db.point[4])
     end
+    RegisterPanel()
     return
   end
   if not db then return end
@@ -238,6 +369,10 @@ ev:SetScript("OnEvent", function(_, event, arg1)
     HideReminder()
   elseif event == "MINIMAP_UPDATE_TRACKING" or event == "PLAYER_REGEN_ENABLED" then
     UpdateReminder()
+    if panel:IsVisible() then RefreshPanel() end
+  elseif event == "UPDATE_SHAPESHIFT_FORM" then
+    -- e.g. druid Track Humanoids only exists in Cat Form; just refresh the icon
+    C_Timer.After(0.5, UpdateReminder)
   else
     C_Timer.After(event == "PLAYER_ENTERING_WORLD" and 3 or 1, Refresh)
   end
@@ -248,37 +383,61 @@ end)
 ---------------------------------------------------------------------------
 local function Print(msg) print("|cff33ff99ForeverTrack|r: " .. msg) end
 
-local function Status()
-  local parts = {}
-  for _, key in ipairs(ORDER) do
-    local idx, active = Find(key)
-    local state = not idx and "not known" or (active and "ON" or "off")
-    parts[#parts + 1] = ("%s: %s%s"):format(Label(key), state, db.want[key] and "" or " (not managed)")
+local function List()
+  local list = Entries()
+  ApplyDefaults(list)
+  if #list == 0 then Print("No trackings available on this character.") return end
+  for i, e in ipairs(list) do
+    Print(("%d. |T%s:14|t %s - %s%s"):format(i, tostring(e.texture or 134400), e.name,
+      e.active and "|cff33ff33ON|r" or "|cff999999off|r",
+      db.want[e.key] and " |cffffd200(kept on)|r" or ""))
   end
-  Print(table.concat(parts, " | "))
-  Print(("auto=%s, reminder=%s"):format(tostring(db.auto), tostring(db.reminder)))
+  Print(("auto=%s, reminder=%s. /ftrack toggle <number or name>"):format(
+    tostring(db.auto), tostring(db.reminder)))
+end
+
+local function Toggle(arg)
+  local list = Entries()
+  ApplyDefaults(list)
+  local n = tonumber(arg)
+  local hit = n and list[n]
+  if not hit and arg ~= "" then
+    for _, e in ipairs(list) do
+      if e.name:lower():find(arg, 1, true) then hit = e; break end
+    end
+  end
+  if not hit then Print("No tracking matches '" .. arg .. "'. Try /ftrack list.") return end
+  db.want[hit.key] = not db.want[hit.key]
+  Print(hit.name .. (db.want[hit.key] and " will be kept on." or " is no longer managed."))
 end
 
 SLASH_FOREVERTRACK1 = "/ftrack"
 SLASH_FOREVERTRACK2 = "/forevertrack"
 SlashCmdList.FOREVERTRACK = function(msg)
-  local cmd = (msg or ""):lower():match("^(%S*)")
-  if cmd == "minerals" or cmd == "treasure" then
-    db.want[cmd] = not db.want[cmd]
-    Print(Label(cmd) .. (db.want[cmd] and " will be kept on." or " is no longer managed."))
+  local cmd, arg = (msg or ""):match("^(%S*)%s*(.-)%s*$")
+  cmd, arg = cmd:lower(), arg:lower()
+  if cmd == "" or cmd == "config" or cmd == "options" then
+    OpenPanel(); return
+  elseif cmd == "list" or cmd == "status" then
+    List(); return
+  elseif cmd == "toggle" or cmd == "t" then
+    Toggle(arg)
+  elseif cmd == "minerals" then
+    Toggle("find minerals")
+  elseif cmd == "treasure" then
+    Toggle("find treasure")
   elseif cmd == "auto" then
     db.auto = not db.auto
+    Print("auto-enable " .. (db.auto and "on" or "off"))
   elseif cmd == "reminder" then
     db.reminder = not db.reminder
+    Print("reminder " .. (db.reminder and "on" or "off"))
   elseif cmd == "on" then
-    -- fall through to EnableAllWanted below
-  elseif cmd == "status" or cmd == "" then
-    Status(); return
+    -- fall through
   else
-    Print("/ftrack on | minerals | treasure | auto | reminder | status")
+    Print("/ftrack (options) | list | toggle <n|name> | on | auto | reminder")
     return
   end
   EnableAllWanted()
   UpdateReminder()
-  Status()
 end

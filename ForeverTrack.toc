@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: ForeverTrack
-## Notes: Keeps Find Minerals and Find Treasure on, and reminds you when tracking is off.
+## Notes: Keeps the minimap trackings you choose switched on (Find Minerals, Herbs, Treasure, Track Beasts...) and reminds you when one is off.
 ## Author: 42nd Design
 ## Version: @project-version@
 ## IconTexture: Interface\AddOns\ForeverTrack\media\icon

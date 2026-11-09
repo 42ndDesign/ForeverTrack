@@ -58,4 +58,6 @@ function() return aura_env.icon end
 
 3. Optional: **Animations** tab → Main → Preset "Pulse"; **Actions** tab → On Show → play a sound.
 
-To watch only Find Minerals, remove `[2481] = true` from both `want` tables.
+To watch only Find Minerals, remove `[2481] = true` from both `want` tables. To watch more,
+add spell IDs to both tables, for example `[2383] = true` (Find Herbs) or `[1494] = true` (Track Beasts).
+The ForeverTrack addon's `/ftrack list` shows every tracking your character has.

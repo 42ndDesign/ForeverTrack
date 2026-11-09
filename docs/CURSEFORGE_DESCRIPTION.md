@@ -1,37 +1,40 @@
 <!-- Paste into the CurseForge project's Description (Markdown). -->
 
 **Summary (for the CurseForge summary field, max ~200 chars):**
-Keeps Find Minerals and Find Treasure on in WoW Forever: turns them back on after death, zoning and login, and reminds you when one is off.
+Keeps your minimap tracking on in WoW Forever: Find Minerals, Herbs, Treasure, Track Beasts and more come back after death, zoning and login, with a reminder when one is off.
 
 ---
 
 # ForeverTrack
 
-**Never mine with a blank minimap again.**
+**Never farm with a blank minimap again.**
 
 WoW Forever lets you track several things at once, but dying clears your tracking and it's easy to forget
-after a loading screen. ForeverTrack keeps **Find Minerals** and **Find Treasure** on for you.
+after a loading screen. ForeverTrack keeps the trackings you choose switched on.
 
 ## What it does
 
-- ⛏️ **Turns tracking back on** at login, after zoning and after you die.
+- ⛏️ **Every tracking in the menu.** Find Minerals, Herbs, Treasure and Fish, hunter tracks (Beasts, Humanoids, Undead, Hidden, Elementals, Demons, Giants, Dragonkin), Sense Undead/Demons, and town trackers.
+- 🔁 **Turns them back on** at login, after zoning and after you die.
+- ✅ **Pick what's managed** with a checkbox per tracking. Gathering is on by default; class and town trackers are off until you tick them.
 - ✋ **Respects your choice.** Turn a tracking off yourself and it stays off.
-- 🔔 **Reminder icon** when a tracking you want is off. Only out of combat. Click it to fix, Shift-drag to move.
+- 🔔 **Reminder icon** when a ticked tracking is off. Only out of combat. Hover to see which, click to fix, Shift-drag to move.
 - 🛡️ **Combat-safe.** Never acts in combat, so no blocked-action errors under Forever's addon rules.
-- 💎 **No setup.** Characters that don't have a spell (like Find Treasure on non-Dwarves) simply skip it.
 
-## Commands
+## Options
+
+Type `/ftrack` or go to Esc → Options → AddOns → ForeverTrack.
 
 | Command | Effect |
 |---|---|
-| `/ftrack` | Show what's on now |
-| `/ftrack on` | Turn all managed trackings on now |
-| `/ftrack minerals` | Toggle whether Find Minerals is managed |
-| `/ftrack treasure` | Toggle whether Find Treasure is managed |
+| `/ftrack` | Open the options panel |
+| `/ftrack list` | List every tracking with its number and state |
+| `/ftrack toggle <number or name>` | Keep it on, or stop managing it |
+| `/ftrack on` | Turn all ticked trackings on now |
 | `/ftrack auto` | Toggle auto-enable (off = reminder only) |
 | `/ftrack reminder` | Toggle the reminder icon |
 
-Settings are saved per character.
+Settings are saved per character, and only trackings that character has are shown.
 
 ## Prefer an aura?
 
@@ -43,4 +46,4 @@ Found a bug or have an idea? Open an issue on GitHub or leave a comment here.
 
 ---
 
-<sub>Source: github.com/42ndDesign/ForeverTrack · MIT License · Not affiliated with Blizzard Entertainment.</sub>
+<sub>Source: [github.com/42ndDesign/ForeverTrack](https://github.com/42ndDesign/ForeverTrack) · MIT License · Not affiliated with Blizzard Entertainment.</sub>

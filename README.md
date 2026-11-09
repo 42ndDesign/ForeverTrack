@@ -2,19 +2,24 @@
 
 # ForeverTrack
 
-A small addon for **World of Warcraft: Forever** that keeps **Find Minerals** and **Find Treasure** on,
-and reminds you when one of them is off.
+A small addon for **World of Warcraft: Forever** that keeps the minimap trackings you choose
+switched on, and reminds you when one of them is off.
 
 Forever lets you run several trackings at once, but dying clears them and they're easy to forget after
 a loading screen. ForeverTrack turns them back on for you.
 
 ## Features
 
-- Turns Find Minerals and Find Treasure on at login, after zoning and after you die.
+- Works with **every tracking in the minimap menu**:
+  - Gathering: Find Minerals, Find Herbs, Find Treasure, Find Fish
+  - Class: Track Beasts, Humanoids, Undead, Hidden, Elementals, Demons, Giants, Dragonkin, Sense Undead, Sense Demons
+  - Town: Flight Master, Mailbox, and the rest
+- Turns ticked trackings on at login, after zoning and after you die.
+- Gathering trackings are on by default. Class and town trackers are off until you tick them.
 - Respects your choice: if you turn a tracking off yourself, it stays off.
-- Pulsing reminder icon (out of combat only) when a tracking you want is off. Click to fix, Shift-drag to move.
+- Pulsing reminder icon (out of combat only) when a ticked tracking is off. Hover to see which, click to fix, Shift-drag to move.
 - Never acts in combat. Works within Forever's addon restrictions.
-- Characters without a spell (for example, non-Dwarves and Find Treasure) just skip it.
+- Only shows trackings your character actually has. Settings are saved per character.
 
 ## Install
 
@@ -22,18 +27,21 @@ a loading screen. ForeverTrack turns them back on for you.
 - **By hand:** download the zip from [Releases](../../releases) and unzip it into your WoW Forever
   `Interface\AddOns` folder, then `/reload`.
 
-## Commands
+## Options
+
+`/ftrack` opens the options panel (also under Esc → Options → AddOns → ForeverTrack).
 
 | Command | Effect |
 |---|---|
-| `/ftrack` or `/ftrack status` | Show what's on now |
-| `/ftrack on` | Turn all managed trackings on now |
-| `/ftrack minerals` | Toggle whether Find Minerals is managed |
-| `/ftrack treasure` | Toggle whether Find Treasure is managed |
+| `/ftrack` | Open the options panel |
+| `/ftrack list` | List every tracking with its number and state |
+| `/ftrack toggle <number or name>` | Keep that tracking on, or stop managing it (e.g. `/ftrack toggle beasts`) |
+| `/ftrack on` | Turn all ticked trackings on now |
 | `/ftrack auto` | Toggle auto-enable (off = reminder only) |
 | `/ftrack reminder` | Toggle the reminder icon |
 
-Settings are saved per character.
+Some class trackings only exist in a form (Druid Track Humanoids needs Cat Form). They appear in the list
+when available, and the reminder only shows them when you're in that form.
 
 ## Prefer an aura?
 
@@ -43,7 +51,7 @@ custom trigger that shows the same reminder without this addon.
 ## Development
 
 The repo root is the addon folder. Releases are built by
-[BigWigsMods/packager](https://github.com/BigWigsMods/packager): push a tag like `v1.0.1` and the
+[BigWigsMods/packager](https://github.com/BigWigsMods/packager): push a tag like `v1.1.0` and the
 GitHub Action builds the zip, creates a GitHub release and, once configured, uploads to CurseForge.
 See [docs/PUBLISHING.md](docs/PUBLISHING.md).
 

@@ -1,5 +1,14 @@
 # ForeverTrack
 
+## v1.1.0
+
+- Works with every tracking in the minimap menu: Find Herbs, Find Fish, hunter Track Beasts/Humanoids/Undead/Hidden/Elementals/Demons/Giants/Dragonkin, Sense Undead/Demons, and town trackers such as Flight Master or Mailbox.
+- New options panel (Esc → Options → AddOns → ForeverTrack, or `/ftrack`) with a checkbox per tracking.
+- Gathering trackings (Minerals, Herbs, Treasure, Fish) are on by default. Class and town trackers are off until you tick them.
+- `/ftrack list` and `/ftrack toggle <number or name>` for chat control.
+- Reminder tooltip lists every tracking that's off.
+- Settings from v1.0.0 carry over.
+
 ## v1.0.0
 
 - First release for WoW Forever (1.60.1).
