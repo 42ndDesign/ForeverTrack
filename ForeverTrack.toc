@@ -7,5 +7,6 @@
 ## SavedVariablesPerCharacter: ForeverTrackDB
 ## X-License: MIT
 ## X-Website: https://github.com/42ndDesign/ForeverTrack
+## X-Curse-Project-ID: 1793515
 
 ForeverTrack.lua
