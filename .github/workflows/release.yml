@@ -1,0 +1,29 @@
+name: Package and release
+
+# Push a tag like v1.0.0 to build the zip and upload it.
+# - Always creates a GitHub release with the zip attached.
+# - Also uploads to CurseForge once the TOC has "## X-Curse-Project-ID: <id>"
+#   and the repo has a CF_API_KEY secret.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      CF_API_KEY: ${{ secrets.CF_API_KEY }}
+      GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check out (full history for the changelog)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Package and upload
+        uses: BigWigsMods/packager@v2

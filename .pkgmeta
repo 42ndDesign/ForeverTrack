@@ -1,0 +1,12 @@
+package-as: ForeverTrack
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+ignore:
+  - assets
+  - docs
+  - README.md
+  - .github
+  - .gitignore

@@ -1,0 +1,11 @@
+## Interface: 16001
+## Title: ForeverTrack
+## Notes: Keeps Find Minerals and Find Treasure on, and reminds you when tracking is off.
+## Author: 42nd Design
+## Version: @project-version@
+## IconTexture: Interface\AddOns\ForeverTrack\media\icon
+## SavedVariablesPerCharacter: ForeverTrackDB
+## X-License: MIT
+## X-Website: https://github.com/42ndDesign/ForeverTrack
+
+ForeverTrack.lua
