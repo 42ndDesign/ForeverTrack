@@ -118,16 +118,80 @@ local function Missing()
   return out
 end
 
-local function EnableAllWanted()
+-- Tracking abilities are spells and trigger the global cooldown, so turning on
+-- two in the same frame fails for the second one. Turn them on one at a time,
+-- waiting out the GCD and re-reading the menu between steps.
+local GCD_SPELL = 61304   -- the client's global-cooldown spell
+local GCD_FALLBACK = 1.6  -- wait this long after a spell when the GCD can't be read
+local STEP = 0.25         -- delay before checking whether the last step worked
+local MAX_TRIES = 3       -- per tracking per pass, so a refusal can't loop forever
+local PASS_TIMEOUT = 30   -- give up on a pass after this many seconds
+
+local pass -- { targets = {[key]=true}, tries = {[key]=n}, lastSpell = time, deadline = time }
+local UpdateReminder
+
+local function GCDRemaining()
+  local start, duration
+  if C_Spell and C_Spell.GetSpellCooldown then
+    local info = C_Spell.GetSpellCooldown(GCD_SPELL)
+    if type(info) == "table" then start, duration = info.startTime, info.duration end
+  elseif GetSpellCooldown then
+    start, duration = GetSpellCooldown(GCD_SPELL)
+  end
+  if IsSecret(start) or IsSecret(duration) then return nil end
+  if type(start) ~= "number" or type(duration) ~= "number" then return nil end
+  if duration == 0 then return 0 end
+  return math.max(0, start + duration - GetTime())
+end
+
+local function Casting()
+  local c = UnitCastingInfo and UnitCastingInfo("player")
+  local ch = UnitChannelInfo and UnitChannelInfo("player")
+  return (c ~= nil) or (ch ~= nil)
+end
+
+local function Step()
+  if not pass then return end
+  if not CanAct() or GetTime() > pass.deadline then
+    pass = nil; UpdateReminder(); return
+  end
+  local wait = GCDRemaining()
+  if wait == nil then wait = math.max(0, (pass.lastSpell or -100) + GCD_FALLBACK - GetTime()) end
+  if wait > 0 or Casting() then
+    C_Timer.After(math.max(wait, STEP) + 0.05, Step); return
+  end
+  for _, e in ipairs(Entries()) do
+    if pass.targets[e.key] and db.want[e.key] and not e.active
+        and (pass.tries[e.key] or 0) < MAX_TRIES then
+      pass.tries[e.key] = (pass.tries[e.key] or 0) + 1
+      if e.isSpell then pass.lastSpell = GetTime() end
+      SetTrackingIndex(e.index, true)
+      C_Timer.After(STEP, Step)
+      return
+    end
+  end
+  pass = nil
+  UpdateReminder()
+end
+
+-- Turn on every ticked tracking that is off (or only `onlyKey`). Only what is
+-- off when asked is targeted, so a tracking you switch off mid-pass stays off.
+local function EnableWanted(onlyKey)
   if not CanAct() then return end
   local list = Entries()
   ApplyDefaults(list)
+  local fresh = not pass
+  pass = pass or { targets = {}, tries = {} }
+  pass.deadline = GetTime() + PASS_TIMEOUT
   for _, e in ipairs(list) do
-    if db.want[e.key] and not e.active then
-      SetTrackingIndex(e.index, true)
+    if db.want[e.key] and not e.active and (not onlyKey or e.key == onlyKey) then
+      pass.targets[e.key] = true
     end
   end
+  if fresh then Step() end
 end
+
+local function EnableAllWanted() EnableWanted() end
 
 ---------------------------------------------------------------------------
 -- Reminder icon
@@ -159,8 +223,9 @@ fade:SetDuration(0.8)
 
 local function HideReminder() reminder:Hide(); pulse:Stop() end
 
-local function UpdateReminder()
-  if not db or not db.reminder or InCombatLockdown() or UnitIsDeadOrGhost("player") then
+function UpdateReminder()
+  -- pass: still turning trackings on one by one; Step() calls us when done
+  if not db or not db.reminder or pass or InCombatLockdown() or UnitIsDeadOrGhost("player") then
     HideReminder(); return
   end
   local missing = Missing()
@@ -286,7 +351,7 @@ local function RefreshPanel()
     row:SetChecked(db.want[e.key] and true or false)
     row:SetScript("OnClick", function(self)
       db.want[e.key] = self:GetChecked() and true or false
-      if db.want[e.key] and CanAct() then SetTrackingIndex(e.index, true) end
+      if db.want[e.key] then EnableWanted(e.key) end
       C_Timer.After(0.3, function() if panel:IsVisible() then RefreshPanel() end UpdateReminder() end)
     end)
     row:Show()
@@ -342,8 +407,16 @@ ev:RegisterEvent("PLAYER_REGEN_ENABLED")
 ev:RegisterEvent("PLAYER_REGEN_DISABLED")
 ev:RegisterEvent("MINIMAP_UPDATE_TRACKING")
 ev:RegisterEvent("SKILL_LINES_CHANGED")
-ev:RegisterEvent("LEARNED_SPELL_IN_TAB")
 ev:RegisterEvent("UPDATE_SHAPESHIFT_FORM")
+
+-- Event names differ between clients, and registering an unknown one raises an
+-- error that would stop the rest of this file loading. Register these carefully.
+local function TryRegister(name)
+  if C_EventUtils and C_EventUtils.IsEventValid and not C_EventUtils.IsEventValid(name) then return end
+  pcall(ev.RegisterEvent, ev, name)
+end
+TryRegister("LEARNED_SPELL_IN_SKILL_LINE") -- modern client
+TryRegister("LEARNED_SPELL_IN_TAB")        -- older clients
 
 ev:SetScript("OnEvent", function(_, event, arg1)
   if event == "ADDON_LOADED" then

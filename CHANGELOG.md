@@ -1,5 +1,11 @@
 # ForeverTrack
 
+## v1.1.1
+
+- Fixed: only the first tracking came back on (e.g. Find Minerals but not Find Treasure). Tracking abilities share the global cooldown, so ForeverTrack now turns them on one at a time, about 1.5 seconds apart.
+- The reminder icon waits until all trackings have been tried before showing.
+- Fixed the "Attempt to register unknown event LEARNED_SPELL_IN_TAB" error on load.
+
 ## v1.1.0
 
 - Works with every tracking in the minimap menu: Find Herbs, Find Fish, hunter Track Beasts/Humanoids/Undead/Hidden/Elementals/Demons/Giants/Dragonkin, Sense Undead/Demons, and town trackers such as Flight Master or Mailbox.
