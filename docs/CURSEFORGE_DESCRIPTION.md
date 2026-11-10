@@ -20,6 +20,7 @@ after a loading screen. ForeverTrack keeps the trackings you choose switched on.
 - ✋ **Respects your choice.** Turn a tracking off yourself and it stays off.
 - 🔔 **Reminder icon** when a ticked tracking is off. Only out of combat. Hover to see which, click to fix, Shift-drag to move.
 - 🛡️ **Combat-safe.** Never acts in combat, so no blocked-action errors under Forever's addon rules.
+- ⚔️ **Stays out of PvP.** Pauses in battlegrounds and arenas. You can turn this off.
 
 ## Options
 
@@ -33,6 +34,7 @@ Type `/ftrack` or go to Esc → Options → AddOns → ForeverTrack.
 | `/ftrack on` | Turn all ticked trackings on now |
 | `/ftrack auto` | Toggle auto-enable (off = reminder only) |
 | `/ftrack reminder` | Toggle the reminder icon |
+| `/ftrack pvp` | Toggle pausing in battlegrounds and arenas |
 
 Settings are saved per character, and only trackings that character has are shown.
 

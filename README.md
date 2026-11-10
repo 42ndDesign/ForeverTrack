@@ -39,6 +39,7 @@ a loading screen. ForeverTrack turns them back on for you.
 | `/ftrack on` | Turn all ticked trackings on now |
 | `/ftrack auto` | Toggle auto-enable (off = reminder only) |
 | `/ftrack reminder` | Toggle the reminder icon |
+| `/ftrack pvp` | Toggle pausing in battlegrounds and arenas |
 
 Some class trackings only exist in a form (Druid Track Humanoids needs Cat Form). They appear in the list
 when available, and the reminder only shows them when you're in that form.

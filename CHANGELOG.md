@@ -1,5 +1,10 @@
 # ForeverTrack
 
+## v1.1.2
+
+- Pauses in battlegrounds and arenas: no tracking changes and no reminder. Your trackings come back when you leave. On by default; turn it off in the options panel or with `/ftrack pvp`.
+- The tracking list in the options panel now scrolls when it doesn't fit.
+
 ## v1.1.1
 
 - Fixed: only the first tracking came back on (e.g. Find Minerals but not Find Treasure). Tracking abilities share the global cooldown, so ForeverTrack now turns them on one at a time, about 1.5 seconds apart.

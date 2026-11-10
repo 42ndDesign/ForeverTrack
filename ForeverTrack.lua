@@ -24,6 +24,7 @@ local DEFAULTS = {
   want = {},         -- [key] = true/false, key = "spell:<id>" or "name:<name>"
   auto = true,       -- re-enable at login, zoning, and after death
   reminder = true,   -- show the "tracking is off" icon
+  pausePvP = true,   -- do nothing in battlegrounds and arenas
   point = nil,       -- saved reminder position
 }
 
@@ -103,8 +104,17 @@ local function ApplyDefaults(list)
   end
 end
 
+-- Battlegrounds and arenas: ForeverTrack stays out of the way (unless the option is off).
+local function InPvPInstance()
+  if not (db and db.pausePvP) or not IsInInstance then return false end
+  local inInstance, kind = IsInInstance()
+  if IsSecret(inInstance) or IsSecret(kind) then return false end
+  return inInstance and (kind == "pvp" or kind == "arena") or false
+end
+
 local function CanAct()
   if InCombatLockdown() then return false end
+  if InPvPInstance() then return false end
   if UnitIsDeadOrGhost("player") then return false end
   if UnitOnTaxi and UnitOnTaxi("player") then return false end
   return true
@@ -225,7 +235,8 @@ local function HideReminder() reminder:Hide(); pulse:Stop() end
 
 function UpdateReminder()
   -- pass: still turning trackings on one by one; Step() calls us when done
-  if not db or not db.reminder or pass or InCombatLockdown() or UnitIsDeadOrGhost("player") then
+  if not db or not db.reminder or pass or InCombatLockdown() or UnitIsDeadOrGhost("player")
+      or InPvPInstance() then
     HideReminder(); return
   end
   local missing = Missing()
@@ -314,10 +325,25 @@ local function BuildPanel()
     nil, function(v) db.reminder = v; UpdateReminder() end)
   panel.rem:SetPoint("TOPLEFT", panel.auto, "BOTTOMLEFT", 0, -2)
 
+  panel.pvp = MakeCheck(panel, "Pause in battlegrounds and arenas",
+    "No tracking changes and no reminder while you're in a battleground or arena.",
+    function(v) db.pausePvP = v; UpdateReminder() end)
+  panel.pvp:SetPoint("TOPLEFT", panel.rem, "BOTTOMLEFT", 0, -2)
+
   local header = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-  header:SetPoint("TOPLEFT", panel.rem, "BOTTOMLEFT", 2, -14)
+  header:SetPoint("TOPLEFT", panel.pvp, "BOTTOMLEFT", 2, -14)
   header:SetText("Keep these on:")
   panel.header = header
+
+  -- The tracking list can be longer than the panel, so it lives in a scroll frame.
+  local scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
+  scroll:SetPoint("TOPLEFT", header, "BOTTOMLEFT", -4, -6)
+  scroll:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -30, 12)
+  local content = CreateFrame("Frame", nil, scroll)
+  content:SetSize(1, 1)
+  scroll:SetScrollChild(content)
+  scroll:HookScript("OnSizeChanged", function(_, w) content:SetWidth(w or 1) end)
+  panel.scroll, panel.list = scroll, content
 end
 
 local function RefreshPanel()
@@ -325,16 +351,18 @@ local function RefreshPanel()
   BuildPanel()
   panel.auto:SetChecked(db.auto)
   panel.rem:SetChecked(db.reminder)
+  panel.pvp:SetChecked(db.pausePvP)
 
   local list = Entries()
   ApplyDefaults(list)
   for _, row in ipairs(panel.rows) do row:Hide() end
 
-  local anchor, lastWasSpell = panel.header, true
+  local ROW_H = 26
+  local anchor, lastWasSpell, height = nil, true, 0
   for i, e in ipairs(list) do
     local row = panel.rows[i]
     if not row then
-      row = MakeCheck(panel, "", nil, function() end)
+      row = MakeCheck(panel.list, "", nil, function() end)
       row.icon = row:CreateTexture(nil, "ARTWORK")
       row.icon:SetSize(18, 18)
       row.icon:SetPoint("LEFT", row, "RIGHT", 4, 0)
@@ -342,10 +370,16 @@ local function RefreshPanel()
       row.label:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
       panel.rows[i] = row
     end
-    local gap = (lastWasSpell and not e.isSpell) and -12 or -2
+    local gap = (lastWasSpell and not e.isSpell) and 12 or 2
     lastWasSpell = e.isSpell
     row:ClearAllPoints()
-    row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", (i == 1) and -2 or 0, (i == 1) and -6 or gap)
+    if anchor then
+      row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -gap)
+      height = height + gap + ROW_H
+    else
+      row:SetPoint("TOPLEFT", panel.list, "TOPLEFT", 0, 0)
+      height = ROW_H
+    end
     row.icon:SetTexture(e.texture or 134400)
     row.label:SetText(e.name .. (e.active and "  |cff33ff33(on)|r" or "  |cff999999(off)|r"))
     row:SetChecked(db.want[e.key] and true or false)
@@ -357,6 +391,8 @@ local function RefreshPanel()
     row:Show()
     anchor = row
   end
+  panel.list:SetWidth(math.max(1, panel.scroll:GetWidth() or 1))
+  panel.list:SetHeight(math.max(1, height))
 end
 
 panel:SetScript("OnShow", RefreshPanel)
@@ -505,10 +541,15 @@ SlashCmdList.FOREVERTRACK = function(msg)
   elseif cmd == "reminder" then
     db.reminder = not db.reminder
     Print("reminder " .. (db.reminder and "on" or "off"))
+  elseif cmd == "pvp" then
+    db.pausePvP = not db.pausePvP
+    Print("pause in battlegrounds and arenas " .. (db.pausePvP and "on" or "off"))
+    UpdateReminder()
+    return
   elseif cmd == "on" then
     -- fall through
   else
-    Print("/ftrack (options) | list | toggle <n|name> | on | auto | reminder")
+    Print("/ftrack (options) | list | toggle <n|name> | on | auto | reminder | pvp")
     return
   end
   EnableAllWanted()
