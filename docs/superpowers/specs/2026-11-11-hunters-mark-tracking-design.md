@@ -2,7 +2,7 @@
 
 Date: 2026-11-11
 Target version: v1.2.0
-Status: reviewed once, awaiting user review
+Status: approved, implemented on feature/hunters-mark-tracking
 
 ## Goal
 
@@ -95,12 +95,12 @@ How a result is decided, for [2] and [3]:
   and if it fails the line reports `BLOCKED` too. `ADDON_ACTION_FORBIDDEN` also brings up
   Blizzard's "ForeverTrack has been blocked" popup. The tester clicks Ignore (section 7).
 - `OK`: the tracking ended up in the requested state.
-- `NO CHANGE`: no error, but the state did not change.
+- `NOCHANGE`: no error, but the state did not change.
 
 Output. Every line starts with the `ForeverTrack` chat prefix, and nothing else is printed:
 
 ```
-ForeverTrack probe v1.2.0 | in combat: YES
+ForeverTrack: probe | version: 1.2.0 | in combat: YES
 [1] target type: Humanoid (readable)
 [2] key press: Track Humanoids on: OK
 [3] timer: Track Beasts on: BLOCKED
@@ -111,7 +111,8 @@ The tester runs the probe twice: once out of combat, once in combat. Typing `/ft
 counts as a key press just as a macro does. A macro button is easier to use mid-fight, though. The
 last line is the only one they need to send back.
 
-Values on the summary line: `combat=YES|NO`, `type=OK|SECRET|NOTARGET`,
+Values on the summary line: `combat=YES|NO|ENDED` (ENDED: combat was over before [3] ran, so run it
+again in a longer fight), `type=OK|SECRET|NOTARGET|NONE`,
 `keypress=OK|BLOCKED|NOCHANGE|SKIPPED`, `timer=OK|BLOCKED|NOCHANGE|SKIPPED`. `SKIPPED` means the
 step could not run, for example because there is no target or no hunter Track spell is off. The
 line before it says why.
@@ -210,17 +211,25 @@ Mark: in combat -> skipped (in-combat switching is off)
 Mark: dead -> skipped
 Mark: on a flight path -> skipped
 Mark: battleground or arena -> skipped (PvP pause is on)
-Macro: no target -> no change
-Macro: Humanoid (type hidden by the game) -> no change
+Macro: no target -> no change            (or "no mouseover", "no focus")
+Macro: type hidden by the game -> no change
 Mark: Undead -> Track Undead not known by this character, no change
+Macro: Undead -> already switching to Track Undead   (macro + automatic trigger both fired)
 ```
 
 When the pass started by a "switching to" line ends, it prints one result line:
 
 ```
 Track Humanoids: ON
-Track Humanoids: FAILED (blocked or timed out)
+Track Humanoids: waiting for combat to end
+Track Humanoids: FAILED (died, flight path or PvP pause)
+Track Humanoids: FAILED (timed out)
+Track Humanoids: FAILED (game refused the change)
 ```
+
+"Waiting for combat to end" covers the common case: mark, then pull before the GCD is over. The
+switch is kept and runs 0.5 s after `PLAYER_REGEN_ENABLED`, then prints `ON`. A newer match
+replaces it.
 
 `/ftrack match` never prints anything when `debug` is off, so a macro pressed often does not spam
 chat.
