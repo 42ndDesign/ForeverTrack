@@ -52,6 +52,22 @@ The probe switches your hunter tracking around. Set it back afterwards.
 10. Die or zone (hearth, instance portal), then wait a few seconds.
     Expect: the last type you marked comes back on.
 
+## In-combat switching (test builds only)
+
+Esc → Options → AddOns → ForeverTrack, tick **Also switch in combat** (or type
+`/ftrack markcombat`, expect `In-combat switching: ON`).
+
+C1. In the middle of a fight, target a mob of a type you aren't tracking and cast Hunter's Mark.
+    Expect: `Mark: <Type> -> switching to Track <Type>`, then about 1.5 s later one of:
+    - `Track <Type>: ON`: it works.
+    - `Track <Type>: FAILED (game refused the change)`, possibly with the "blocked" popup.
+      Click Ignore. This means the game doesn't allow it.
+
+C2. Mark a beast and attack it straight away (fight starts within 1.5 s).
+    Expect: `Track Beasts: ON` during the fight, not `waiting for combat to end`.
+
+Send the lines from C1 and C2. Then untick the option again (`/ftrack markcombat`).
+
 ## Macro version
 
 11. Type `/ftrack mark`. Expect: `Hunter's Mark matching: OFF`.

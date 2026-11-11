@@ -420,7 +420,8 @@ local function Match(unit, source)
     Debug(("%s: %s -> already switching to %s"):format(label, ctype, e.name)); return
   end
   Debug(("%s: %s -> switching to %s"):format(label, ctype, e.name))
-  QueueMatch(e, list, combat)
+  -- With in-combat switching on, a switch queued just before the pull may finish in the fight.
+  QueueMatch(e, list, combat or (COMBAT_SWITCH_WORKS and db.markCombat))
 end
 
 -- Matches cut off by combat (marked, then pulled before the GCD ended)
