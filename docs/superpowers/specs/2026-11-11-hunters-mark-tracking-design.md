@@ -2,7 +2,13 @@
 
 Date: 2026-11-11
 Target version: v1.2.0
-Status: approved, implemented on feature/hunters-mark-tracking
+Status: shipped in v1.2.0
+
+Outcome: in-game testing (builds 1.2.0-test1 to test3) showed in-combat switching works. v1.2.0
+ships the in-combat option as a normal setting, off by default, and drops `COMBAT_SWITCH_WORKS`
+and `/ftrack probe`. The tests also found a bug, now fixed: the tracking cast could go out in the
+same instant as Hunter's Mark and swallow it. The switch now waits at least `GCD_FALLBACK` after the
+triggering spell. Sections 1 and 7 below describe the test-only probe.
 
 ## Goal
 

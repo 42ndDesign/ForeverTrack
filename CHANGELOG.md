@@ -2,10 +2,12 @@
 
 ## v1.2.0
 
-- Hunters: casting Hunter's Mark switches your hunter tracking to the target's type (Beast, Humanoid, Undead...). If you already track that type, nothing happens and there's no extra GCD. Out of combat only. If you pull before the GCD ends, the switch happens when combat ends. Turn it off in the options panel or with `/ftrack mark`.
+- Hunters: casting Hunter's Mark switches your hunter tracking to the target's type (Beast, Humanoid, Undead...). If you already track that type, nothing happens and there's no extra GCD. Turn it off in the options panel or with `/ftrack mark`.
 - `/ftrack match [unit]` does the same from a macro, after any spell. For example `/cast Hunter's Mark` then `/ftrack match`, or `/ftrack match mouseover`.
 - Only one hunter Track spell can be ticked in the keep-on list, since only one can be on at a time. Ticking one unticks the others, and characters with several ticked are cleaned up.
-- `/ftrack debug` prints one line per tracking match. `/ftrack probe` checks what the game allows and is used for testing.
+- Optional: **Also switch in combat** (off by default, `/ftrack markcombat`). With it off, a mark cast in combat changes nothing. If you mark and then pull before the GCD ends, the switch happens when the fight is over.
+- The switch always waits for the Mark's GCD, so the Mark goes out on the first click.
+- `/ftrack debug` prints one line per tracking match.
 
 ## v1.1.2
 

@@ -3,7 +3,7 @@
 -- Works with every entry in the minimap tracking menu: gathering (Find Minerals,
 -- Herbs, Treasure, Fish), class tracking (Track Beasts, Humanoids, Undead, ...,
 -- Sense Undead/Demons) and town trackers (Flight Master, Mailbox, ...).
--- All changes happen OUT of combat only.
+-- Changes happen out of combat only, except the opt-in in-combat Hunter's Mark switch.
 
 local ADDON = ...
 
@@ -37,17 +37,13 @@ local TYPE_EN = { [1] = "Beast", [2] = "Dragonkin", [3] = "Demon", [4] = "Elemen
                   [5] = "Giant", [6] = "Undead", [7] = "Humanoid" }
 local HUNTERS_MARK = { [1130] = true, [14323] = true, [14324] = true, [14325] = true }
 
--- Whether SetTracking works in combat from a timer. Set from the tester's
--- /ftrack probe results (timer=OK while in combat). Off until confirmed.
-local COMBAT_SWITCH_WORKS = false
-
 local DEFAULTS = {
   want = {},         -- [key] = true/false, key = "spell:<id>" or "name:<name>"
   auto = true,       -- re-enable at login, zoning, and after death
   reminder = true,   -- show the "tracking is off" icon
   pausePvP = true,   -- do nothing in battlegrounds and arenas
   markMatch = true,  -- hunters: switch tracking to the Hunter's Mark target's type
-  markCombat = false,-- also switch in combat (only offered if COMBAT_SWITCH_WORKS)
+  markCombat = false,-- also switch in combat (costs a GCD mid-fight)
   debug = false,     -- one chat line per match decision
   point = nil,       -- saved reminder position
 }
@@ -56,13 +52,6 @@ local db
 
 local function Print(msg) print("|cff33ff99ForeverTrack|r: " .. msg) end
 local function Debug(msg) if db and db.debug then Print(msg) end end
-
-local function Version()
-  local get = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
-  local v = get and get(ADDON, "Version")
-  if type(v) ~= "string" or v:find("@", 1, true) then return "dev" end
-  return v
-end
 
 local function IsHunter()
   local _, class = UnitClass("player")
@@ -387,7 +376,7 @@ local function Match(unit, source)
   if UnitOnTaxi and UnitOnTaxi("player") then Debug(label .. ": on a flight path -> skipped"); return end
   if InPvPInstance() then Debug(label .. ": battleground or arena -> skipped (PvP pause is on)"); return end
   local combat = InCombatLockdown()
-  if combat and not (COMBAT_SWITCH_WORKS and db.markCombat) then
+  if combat and not db.markCombat then
     Debug(label .. ": in combat -> skipped (in-combat switching is off)"); return
   end
 
@@ -421,7 +410,7 @@ local function Match(unit, source)
   end
   Debug(("%s: %s -> switching to %s"):format(label, ctype, e.name))
   -- With in-combat switching on, a switch queued just before the pull may finish in the fight.
-  QueueMatch(e, list, combat or (COMBAT_SWITCH_WORKS and db.markCombat))
+  QueueMatch(e, list, combat or db.markCombat)
 end
 
 -- Matches cut off by combat (marked, then pulled before the GCD ended)
@@ -442,108 +431,6 @@ local function IsHuntersMark(spellID)
   if HUNTERS_MARK[spellID] then return true end
   markName = markName or SpellName(1130)
   return markName ~= nil and SpellName(spellID) == markName
-end
-
----------------------------------------------------------------------------
--- /ftrack probe: in-game test of what Forever allows. Prints one summary line
--- (PROBE RESULT ...) for a remote tester to send back.
----------------------------------------------------------------------------
-local probe -- { r = results, watching = bool, blocked = bool, started = time }
-
-local blockWatch = CreateFrame("Frame")
-pcall(blockWatch.RegisterEvent, blockWatch, "ADDON_ACTION_BLOCKED")
-pcall(blockWatch.RegisterEvent, blockWatch, "ADDON_ACTION_FORBIDDEN")
-blockWatch:SetScript("OnEvent", function(_, _, addon)
-  if probe and probe.watching and addon == ADDON then probe.blocked = true end
-end)
-
--- Try to turn `e` on, then report OK / BLOCKED / NOCHANGE on one line.
-local function ProbeAttempt(e, label, field, done)
-  probe.blocked, probe.watching = false, true
-  local ok = pcall(SetTrackingIndex, e.index, true)
-  C_Timer.After(0.3, function()
-    probe.watching = false
-    local now = false
-    for _, o in ipairs(Entries()) do if o.key == e.key then now = o.active end end
-    local res = (probe.blocked or not ok) and "BLOCKED" or (now and "OK" or "NOCHANGE")
-    probe.r[field] = res
-    Print(("%s: %s on: %s"):format(label, e.name, res))
-    done()
-  end)
-end
-
-local function Probe()
-  if probe and GetTime() - probe.started < 15 then
-    Print("Probe still running. Wait for the PROBE RESULT line."); return
-  end
-  probe = nil
-  local gcd = GCDRemaining()
-  if (gcd and gcd > 0) or Casting() then
-    Print("PROBE RESULT: BUSY (GCD) - run again"); return
-  end
-
-  local r = { combat = InCombatLockdown() and "YES" or "NO", type = "NOTARGET",
-              keypress = "SKIPPED", timer = "SKIPPED" }
-  probe = { r = r, started = GetTime() }
-  Print(("probe | version: %s | in combat: %s"):format(Version(), r.combat))
-
-  -- [1] creature type
-  local ctype
-  local exists = UnitExists("target")
-  if IsSecret(exists) then
-    r.type = "SECRET"; Print("[1] target type: hidden by the game (secret)")
-  elseif not exists then
-    Print("[1] target type: no target")
-  else
-    ctype = UnitCreatureType("target")
-    if IsSecret(ctype) then
-      r.type, ctype = "SECRET", nil; Print("[1] target type: hidden by the game (secret)")
-    elseif not ctype then
-      r.type = "NONE"; Print("[1] target type: none (readable)")
-    else
-      r.type = "OK"; Print(("[1] target type: %s (readable)"):format(ctype))
-    end
-  end
-
-  -- Two different hunter Track spells that are off; the target's type first.
-  local want = ctype and TrackSpellForType(ctype)
-  local off = {}
-  for _, e in ipairs(Entries()) do
-    if e.hunterTrack and not e.active then
-      if e.hunterTrack == want then table.insert(off, 1, e) else off[#off + 1] = e end
-    end
-  end
-  local A, B = off[1], off[2]
-
-  local function finish()
-    Print(("PROBE RESULT: combat=%s type=%s keypress=%s timer=%s"):format(
-      r.combat, r.type, r.keypress, r.timer))
-    probe = nil
-  end
-
-  local function timerTest()
-    if not B then
-      Print("[3] timer: SKIPPED (needs a second hunter Track spell that is off)"); finish(); return
-    end
-    local waited = false
-    local function try()
-      local w = GCDRemaining()
-      if w == nil then w = waited and 0 or GCD_FALLBACK end
-      waited = true
-      if w > 0 or Casting() then C_Timer.After(w + 0.1, try); return end
-      if r.combat == "YES" and not InCombatLockdown() then r.combat = "ENDED" end
-      ProbeAttempt(B, "[3] timer", "timer", finish)
-    end
-    C_Timer.After(0.1, try)
-  end
-
-  -- [2] straight from the key press
-  if not A then
-    Print("[2] key press: SKIPPED (no hunter Track spell is off)")
-    timerTest()
-  else
-    ProbeAttempt(A, "[2] key press", "keypress", timerTest)
-  end
 end
 
 ---------------------------------------------------------------------------
@@ -677,15 +564,14 @@ local function BuildPanel()
   panel.mark = MakeCheck(panel, "Match tracking to Hunter's Mark target",
     "When you cast Hunter's Mark, switch your hunter tracking to the target's type "
     .. "(Beast, Humanoid, ...). Nothing happens, and no extra GCD, if it's already on. "
-    .. "Out of combat only. For a macro, put /ftrack match after any spell.",
+    .. "For a macro, put /ftrack match after any spell.",
     function(v) db.markMatch = v end)
   panel.mark:SetPoint("TOPLEFT", panel.pvp, "BOTTOMLEFT", 0, -2)
-  if COMBAT_SWITCH_WORKS then
-    panel.markCombat = MakeCheck(panel, "Also switch in combat",
-      "Lets Hunter's Mark and /ftrack match switch tracking during a fight.",
-      function(v) db.markCombat = v end)
-    panel.markCombat:SetPoint("TOPLEFT", panel.mark, "BOTTOMLEFT", 0, -2)
-  end
+  panel.markCombat = MakeCheck(panel, "Also switch in combat",
+    "Lets Hunter's Mark and /ftrack match switch tracking during a fight. "
+    .. "The switch costs a GCD about 1.5 s after the Mark.",
+    function(v) db.markCombat = v end)
+  panel.markCombat:SetPoint("TOPLEFT", panel.mark, "BOTTOMLEFT", 0, -2)
 
   local header = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
   header:SetPoint("TOPLEFT", panel.pvp, "BOTTOMLEFT", 2, -14)
@@ -714,12 +600,9 @@ local function RefreshPanel()
   local last = panel.pvp
   panel.mark:SetShown(hunter)
   panel.mark:SetChecked(db.markMatch)
-  if hunter then last = panel.mark end
-  if panel.markCombat then
-    panel.markCombat:SetShown(hunter)
-    panel.markCombat:SetChecked(db.markCombat)
-    if hunter then last = panel.markCombat end
-  end
+  panel.markCombat:SetShown(hunter)
+  panel.markCombat:SetChecked(db.markCombat)
+  if hunter then last = panel.markCombat end
   panel.header:ClearAllPoints()
   panel.header:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 2, -14)
 
@@ -934,7 +817,7 @@ SlashCmdList.FOREVERTRACK = function(msg)
     db.markMatch = not db.markMatch
     Print("Hunter's Mark matching: " .. (db.markMatch and "ON" or "OFF"))
     return
-  elseif cmd == "markcombat" and COMBAT_SWITCH_WORKS then
+  elseif cmd == "markcombat" then
     db.markCombat = not db.markCombat
     Print("In-combat switching: " .. (db.markCombat and "ON" or "OFF"))
     return
@@ -942,14 +825,11 @@ SlashCmdList.FOREVERTRACK = function(msg)
     db.debug = not db.debug
     Print("Debug messages: " .. (db.debug and "ON" or "OFF"))
     return
-  elseif cmd == "probe" then
-    Probe()
-    return
   elseif cmd == "on" then
     -- fall through
   else
     Print("/ftrack (options) | list | toggle <n|name> | on | auto | reminder | pvp"
-      .. " | match [unit] | mark | debug | probe")
+      .. " | match [unit] | mark | markcombat | debug")
     return
   end
   EnableAllWanted()

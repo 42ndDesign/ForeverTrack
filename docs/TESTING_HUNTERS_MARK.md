@@ -1,84 +1,61 @@
 # ForeverTrack test: Hunter's Mark tracking
 
-Thanks for testing. Each step says what to do and what chat should show. Lines start with
+An in-game checklist for the Hunter's Mark feature. Run it on a hunter before a release that
+touches matching. Each step says what to do and what chat should show. Lines start with
 `ForeverTrack:`.
-
-**Send back:** the two `PROBE RESULT` lines from steps 2 and 3, and the step number plus the exact
-chat line for any step that doesn't match.
-
-If a popup says *"ForeverTrack has been blocked from an action"*, click **Ignore** and carry on.
-That's expected during step 3, and it tells us the answer.
 
 ## Setup
 
-1. Install this build, `/reload`, then type `/ftrack debug`.
-   Expect: `Debug messages: ON`
+1. `/ftrack debug`. Expect: `Debug messages: ON`
 
-## Probe (what the game allows)
+## Out of combat
 
-2. Out of combat, target any mob and type `/ftrack probe`.
-   Expect four lines, then one starting with `PROBE RESULT:`. Send that line.
-   If you see `PROBE RESULT: BUSY (GCD) - run again`, wait 2 seconds and run it again.
+2. Track anything except Beasts. Target a beast and cast Hunter's Mark.
+   Expect: the Mark lands on the first click, `Mark: Beast -> switching to Track Beasts`, then
+   about 1.5 s later `Track Beasts: ON`.
 
-3. Make a macro containing just `/ftrack probe` and put it on your bars. Start a fight with a
-   mob that lives a while (at least 5 seconds), target it, and press the macro mid-fight.
-   Send the `PROBE RESULT:` line.
-   If it says `combat=ENDED`, the fight ended too soon. Do it again on a tougher mob.
-
-The probe switches your hunter tracking around. Set it back afterwards.
-
-## Hunter's Mark (out of combat)
-
-4. Track anything except Beasts. Target a beast and cast Hunter's Mark.
-   Expect: `Mark: Beast -> switching to Track Beasts`, then about 1.5 s later
-   `Track Beasts: ON`, and the minimap tracking changes.
-
-5. Cast Hunter's Mark on the same beast again.
+3. Cast Hunter's Mark on the same beast again.
    Expect: `Mark: Beast -> Track Beasts already on, no change`. No second GCD.
 
-6. Target a humanoid and cast Hunter's Mark.
+4. Target a humanoid and cast Hunter's Mark.
    Expect: `Mark: Humanoid -> switching to Track Humanoids`, then `Track Humanoids: ON`.
 
-7. Target a critter (rabbit, squirrel...) and cast Hunter's Mark.
+5. Target a critter and cast Hunter's Mark.
    Expect: `Mark: Critter -> no tracking for this type, no change`.
 
-8. Mark a beast and attack it straight away, so the fight starts within 1.5 seconds.
-   Expect: `Mark: Beast -> switching to Track Beasts`, then
-   `Track Beasts: waiting for combat to end`. After the fight: `Track Beasts: ON`.
+6. Mark a mob whose Track spell you haven't trained (low-level hunter).
+   Expect: the Mark casts, and `Mark: <Type> -> Track <Type> not known by this character, no change`.
 
-9. Cast Hunter's Mark in the middle of a fight.
+7. Mark a beast and attack it straight away (fight starts within 1.5 s).
+   Expect: `Track Beasts: waiting for combat to end`. After the fight: `Track Beasts: ON`.
+
+8. Cast Hunter's Mark in the middle of a fight.
    Expect: `Mark: in combat -> skipped (in-combat switching is off)`.
 
-10. Die or zone (hearth, instance portal), then wait a few seconds.
-    Expect: the last type you marked comes back on.
+9. Die or zone, then wait a few seconds.
+   Expect: the last type you marked comes back on.
 
-## In-combat switching (test builds only)
+## In combat
 
-Esc → Options → AddOns → ForeverTrack, tick **Also switch in combat** (or type
-`/ftrack markcombat`, expect `In-combat switching: ON`).
+`/ftrack markcombat`. Expect: `In-combat switching: ON` (also a checkbox in the options panel).
 
-C1. In the middle of a fight, target a mob of a type you aren't tracking and cast Hunter's Mark.
-    Expect: `Mark: <Type> -> switching to Track <Type>`, then about 1.5 s later one of:
-    - `Track <Type>: ON`: it works.
-    - `Track <Type>: FAILED (game refused the change)`, possibly with the "blocked" popup.
-      Click Ignore. This means the game doesn't allow it.
+10. Mid-fight, mark a mob of a type you aren't tracking.
+    Expect: `switching to Track <Type>`, then `Track <Type>: ON`.
 
-C2. Mark a beast and attack it straight away (fight starts within 1.5 s).
+11. Mark a beast and attack it straight away.
     Expect: `Track Beasts: ON` during the fight, not `waiting for combat to end`.
 
-Send the lines from C1 and C2. Then untick the option again (`/ftrack markcombat`).
+`/ftrack markcombat` again to turn it back off.
 
-## Macro version
+## Macro
 
-11. Type `/ftrack mark`. Expect: `Hunter's Mark matching: OFF`.
-    Make this macro:
+12. `/ftrack mark`. Expect: `Hunter's Mark matching: OFF`. Then use this macro on a beast while
+    tracking something else:
     ```
     #showtooltip Hunter's Mark
     /cast Hunter's Mark
     /ftrack match
     ```
-    Use it on a beast while tracking something else.
     Expect: `Macro: Beast -> switching to Track Beasts`, then `Track Beasts: ON`.
 
-12. Type `/ftrack mark` again (expect `Hunter's Mark matching: ON`) and `/ftrack debug`
-    (expect `Debug messages: OFF`). You're back to normal settings.
+13. `/ftrack mark` (expect `ON`) and `/ftrack debug` (expect `OFF`) to restore the defaults.

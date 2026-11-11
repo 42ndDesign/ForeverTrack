@@ -18,8 +18,8 @@ a loading screen. ForeverTrack turns them back on for you.
 - Gathering trackings are on by default. Class and town trackers are off until you tick them.
 - Respects your choice: if you turn a tracking off yourself, it stays off.
 - Pulsing reminder icon (out of combat only) when a ticked tracking is off. Hover to see which, click to fix, Shift-drag to move.
-- **Hunters:** casting Hunter's Mark switches your tracking to the target's type (Beast, Humanoid, ...). No extra GCD if it's already on. Also works from a macro with `/ftrack match`.
-- Never acts in combat. Works within Forever's addon restrictions.
+- **Hunters:** casting Hunter's Mark switches your tracking to the target's type (Beast, Humanoid, ...). No extra GCD if it's already on. Also works from a macro with `/ftrack match`, and in combat if you turn that on.
+- Never acts in combat, unless you turn on in-combat Hunter's Mark switching. Works within Forever's addon restrictions.
 - Only shows trackings your character actually has. Settings are saved per character.
 
 ## Install
@@ -42,6 +42,7 @@ a loading screen. ForeverTrack turns them back on for you.
 | `/ftrack reminder` | Toggle the reminder icon |
 | `/ftrack pvp` | Toggle pausing in battlegrounds and arenas |
 | `/ftrack mark` | Hunters: toggle matching tracking to the Hunter's Mark target |
+| `/ftrack markcombat` | Hunters: also switch tracking in combat (off by default) |
 | `/ftrack match [unit]` | Hunters: switch tracking to the target's type now (for macros) |
 | `/ftrack debug` | Print a line for every tracking match |
 
