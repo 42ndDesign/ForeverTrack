@@ -295,8 +295,10 @@ local function Step()
   if not pass then return end
   if not PassAllowed() then FinishPass("stopped"); return end
   if GetTime() > pass.deadline then FinishPass("timeout"); return end
-  local wait = GCDRemaining()
-  if wait == nil then wait = math.max(0, (pass.lastSpell or -100) + GCD_FALLBACK - GetTime()) end
+  -- Wait for whichever is later: the GCD as the game reports it, or GCD_FALLBACK
+  -- after the last spell we know of. Right after a cast the game can still report
+  -- the GCD as 0, and casting then would eat the spell we were triggered by.
+  local wait = math.max(GCDRemaining() or 0, (pass.lastSpell or -100) + GCD_FALLBACK - GetTime())
   if wait > 0 or Casting() then
     C_Timer.After(math.max(wait, STEP) + 0.05, Step); return
   end
@@ -361,6 +363,9 @@ local function QueueMatch(e, list, combatOK)
   local fresh = not pass
   pass = pass or NewPass()
   pass.deadline = GetTime() + PASS_TIMEOUT
+  -- Treat the triggering spell (Hunter's Mark, or the macro's /cast) as just
+  -- cast, so the switch never lands on top of it, whatever order the macro uses.
+  pass.lastSpell = GetTime()
   if combatOK then pass.combatOK = true end
   for _, o in ipairs(list) do
     if o.hunterTrack and o.key ~= e.key then
